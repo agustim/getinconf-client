@@ -1,0 +1,101 @@
+#!/bin/sh
+#
+# Copyright © 2012 Routek S.L.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+# Authors:
+#	Agustí Moll i Garcia
+#	Simó Albert i Beltran
+#
+
+POSTDATA=""
+BOUNDARY="-----02CAFFEEBABE"
+TINCPATH=/etc/tinc
+TINCDAEMON=tincd
+DECRYPTFILE=/usr/sbin/decrypt
+TINCDINIT=/etc/init.d/tinc
+NETSBOOTFILE=/etc/tinc/nets.boot
+ALLCONFIG=1
+URL="http://10.139.40.62:8080/index.php/nodes/get2"
+NETWORK_NAME=demo
+NETWORK_KEY=demo
+HOSTNAME=$(hostname)
+INTERNAL_DEV=eth0
+INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}"|awk '{print $2}'| sed 's/\(.*\)\/.*/\1/')
+MAC=$(ip addr show dev ${INTERNAL_DEV}|grep link/ether | awk '{print $2}' | tr "[:lower:]" "[:upper:]")
+MAC_ENCODE=$(echo "${MAC}" | awk '{gsub(/:/,"-"); print $1}')
+HASH_MAC=$(echo -n "${MAC}${NETWORK_KEY}${NETWORK_NAME}" | md5sum | awk '{print $1}')
+
+msg_error() {
+	echo $1
+	exit $2
+}
+add_file() {
+        FULLFILENAME=$1
+        TEMPDATA="$(cat $FULLFILENAME)"
+        FILENAME="$2"
+        POSTDATA="
+${POSTDATA}--${BOUNDARY}
+Content-Disposition: form-data; name=\"$FILENAME\"; filename="$FILENAME"
+Content-Type: text/plain
+
+${TEMPDATA}
+
+"
+	}
+
+end_boundary() {
+        POSTDATA="${POSTDATA}--${BOUNDARY}- -"
+	}
+
+
+call_wget() {
+	LFILE=$2
+	LURL=$1
+	add_file "${LFILE}" rsakeypub
+	end_boundary
+
+	wget --header="Content-Type: multipart/form-data; boundary=${BOUNDARY}" --post-data="${POSTDATA}" -qO - ${LURL}
+	}
+
+add_network_netsboot() {
+	echo "Buscar si esta a netboot!"	
+ 	$(cat ${NETSBOOTFILE}|grep -qe ^${NETWORK_NAME}) &&  echo "[NO]" || (echo "[YES]"; echo "${NETWORK_NAME}" >> ${NETSBOOTFILE})
+	}
+
+mkdir -p ${TINCPATH}
+cd ${TINCPATH}
+if [ ! -f rsa_key.priv ]
+then
+	echo -e "\n\n"|tincd -K
+fi
+
+URL=${URL}/${HASH_MAC}/$NETWORK_NAME/${MAC_ENCODE}/$HOSTNAME/$INTERNAL_IP/$ALLCONFIG
+echo "URL => ${URL}"
+#CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub | ${DECRYPTFILE} ${TINCPATH}/rsa_key.priv)
+CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub)
+echo -n "Load config...."
+echo "${CONFIG}"
+if echo "$CONFIG" | grep -q "^#!/bin/"
+then
+	echo "OK"
+	sh -c "$CONFIG"
+	#echo "${CONFIG}"
+	echo -n "Need install net tinc to ${NETSBOOTFILE}? "
+	add_network_netsboot
+	${TINCDINIT} restart
+else
+	echo "Error."
+fi
