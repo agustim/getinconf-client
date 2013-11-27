@@ -28,6 +28,7 @@ DECRYPTFILE=/usr/sbin/decrypt
 TINCDINIT=/etc/init.d/tinc
 NETSBOOTFILE=/etc/tinc/nets.boot
 CONFIGFILE=/etc/getinconf-client.conf
+CONFIGFILEDEFAULT=${CONFIGFILE}.default
 ALLCONFIG=1
 HOSTNAME=$(hostname)
 WGETOPTIONS="-T 10 -t 1"
@@ -37,6 +38,7 @@ then
 	. ${CONFIGFILE} 
 else 
 	echo "Config file (${CONFIGFILE}) doesn't exist."
+	[ -f ${CONFIGFILEDEFAULT} ] && echo "Use the default config file in ${CONFIGFILEDEFAULT} as an example."
 	exit
 fi
 
