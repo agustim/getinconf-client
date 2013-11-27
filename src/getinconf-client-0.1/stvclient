@@ -27,12 +27,19 @@ TINCDAEMON=tincd
 DECRYPTFILE=/usr/sbin/decrypt
 TINCDINIT=/etc/init.d/tinc
 NETSBOOTFILE=/etc/tinc/nets.boot
+CONFIGFILE=/etc/getinconf-client.conf
 ALLCONFIG=1
-URL="http://10.139.40.62:8080/index.php/nodes/get2"
-NETWORK_NAME=demo
-NETWORK_KEY=demo
 HOSTNAME=$(hostname)
-INTERNAL_DEV=eth0
+WGETOPTIONS="-T 10 -t 1"
+
+if [ -f ${CONFIGFILE} ];
+then
+	. ${CONFIGFILE} 
+else 
+	echo "Config file (${CONFIGFILE}) doesn't exist."
+	exit
+fi
+
 INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}"|awk '{print $2}'| sed 's/\(.*\)\/.*/\1/')
 MAC=$(ip addr show dev ${INTERNAL_DEV}|grep link/ether | awk '{print $2}' | tr "[:lower:]" "[:upper:]")
 MAC_ENCODE=$(echo "${MAC}" | awk '{gsub(/:/,"-"); print $1}')
@@ -67,7 +74,7 @@ call_wget() {
 	add_file "${LFILE}" rsakeypub
 	end_boundary
 
-	wget --header="Content-Type: multipart/form-data; boundary=${BOUNDARY}" --post-data="${POSTDATA}" -qO - ${LURL}
+	wget ${WGETOPTIONS} --header="Content-Type: multipart/form-data; boundary=${BOUNDARY}" --post-data="${POSTDATA}" -qO - ${LURL}
 	}
 
 add_network_netsboot() {

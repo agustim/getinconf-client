@@ -1,0 +1,15 @@
+Source: getinconf-client
+Section: unknown
+Priority: extra
+Maintainer: Agustí Moll <agusti.moll@guifi.net>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.2
+Homepage: https://github.com/agustim/getinconf-client
+Vcs-Git: git://github.com/agustim/getinconf-client.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/getinconf-client.git;a=summary
+
+Package: getinconf-client
+Architecture: all
+Depends: tinc
+Description: System managment a TincVPN 
+ System to control and centralize a TincVPN Network.

@@ -2,14 +2,16 @@ VERSION = 0.1
 NAME = getinconf-client
 SOURCEDIR = $(NAME)-$(VERSION)
 TGZNAME = $(NAME)-$(VERSION).tar.gz
-SRC = "src/"
+SRC = src/
+EMAIL = agusti.moll@guifi.net
+FULLNAME = Agustí Moll
 
 all: tgz buildpkg
 	@echo "Did it!"
 
 tgz:
 	@echo "Create .tgz"
-	@cd $(SRC);tar zcfv ../$(TGZNAME) $(SOURCEDIR)
+	@cd $(SRC);tar zcf ../$(TGZNAME) $(SOURCEDIR)
 
 cleanpkg:
 	@echo "Remove debuild"
@@ -18,13 +20,17 @@ cleanpkg:
 	@rm -f $(TGZNAME)
 
 preparepkg:
-	@tar zxvf $(TGZNAME)
+	@tar zxf $(TGZNAME)
 
 makepkg:
-	@cd $(SOURCEDIR); dh_make -f ../$(TGZNAME)
+	@cd $(SOURCEDIR); DEBFULLNAME="$(FULLNAME)" dh_make -f ../$(TGZNAME) -i -e $(EMAIL) -c gpl2
+
+preinstallpkg:
+	cp -dpR debpkg/* $(SOURCEDIR)/debian/
 
 installpkg:
 	@cd $(SOURCEDIR); debuild -us -uc
 
-buildpkg:	preparepkg makepkg installpkg
+buildpkg:	preparepkg makepkg preinstallpkg installpkg
 	@echo "buidlpkg"
+
