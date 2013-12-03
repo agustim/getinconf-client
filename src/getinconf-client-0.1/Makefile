@@ -14,4 +14,4 @@ install:
 	mkdir -p $(INSTALLDIR)/etc
 	@echo "Install files"	
 	install -m 0755 getinconf-client $(INSTALLDIR)/usr/sbin
-	install -m 0600 getinconf-client.conf $(INSTALLDIR)/etc/getinconf-client.conf.default
+	install -m 0600 getinconf-client.conf $(INSTALLDIR)/etc/getinconf-client.conf
