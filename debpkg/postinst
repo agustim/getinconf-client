@@ -17,7 +17,8 @@ set -e
 # for details, see http://www.debian.org/doc/debian-policy/ or
 # the debian-policy package
 
-variables="URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
+variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
+othersvariables="PORT=665 GETINCONF_IGNORE=1"
 conffile="/etc/getinconf-client.conf"
 
 write_file()
@@ -28,6 +29,10 @@ write_file()
 	for i in $variables
 	do
 		eval echo $i=\${$i}
+	done
+	for i in $othersvariables
+	do
+		echo "#${i}"
 	done
 }
 

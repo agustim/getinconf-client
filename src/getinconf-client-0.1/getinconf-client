@@ -31,6 +31,9 @@ CONFIGFILE=/etc/getinconf-client.conf
 ALLCONFIG=1
 HOSTNAME=$(hostname)
 WGETOPTIONS="-T 10 -t 1"
+GTC_SERVER_GETPATH="/nodes/get2"
+GTC_SERVER_MYIP="/pages/ip"
+
 
 if [ -f ${CONFIGFILE} ];
 then
@@ -49,16 +52,23 @@ INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}"|awk '{print $2}'| sed 's/\(
 MAC=$(ip addr show dev ${INTERNAL_DEV}|grep link/ether | awk '{print $2}' | tr "[:lower:]" "[:upper:]")
 MAC_ENCODE=$(echo "${MAC}" | awk '{gsub(/:/,"-"); print $1}')
 HASH_MAC=$(echo -n "${MAC}${NETWORK_KEY}${NETWORK_NAME}" | md5sum | awk '{print $1}')
+URL="${GTC_SERVER_URL}${GTC_SERVER_GETPATH}"
 
+test_nat() {
+	# Get myIP
+	MYIP=$(wget ${WGETOPTIONS} -qO - "${GTC_SERVER_URL}${GTC_SERVER_MYIP}")
+	# Compare my IP with my IP Connect.
+	[ $INTERNAL_IP != $MYIP ] && NAT=1 || NAT=0
+}
 msg_error() {
 	echo $1
 	exit $2
 }
 add_file() {
-        FULLFILENAME=$1
-        TEMPDATA="$(cat $FULLFILENAME)"
-        FILENAME="$2"
-        POSTDATA="
+    FULLFILENAME=$1
+    TEMPDATA="$(cat $FULLFILENAME)"
+    FILENAME="$2"
+    POSTDATA="
 ${POSTDATA}--${BOUNDARY}
 Content-Disposition: form-data; name=\"$FILENAME\"; filename="$FILENAME"
 Content-Type: text/plain
@@ -94,7 +104,26 @@ then
 	echo -e "\n\n"|tincd -K
 fi
 
-URL=${URL}/${HASH_MAC}/$NETWORK_NAME/${MAC_ENCODE}/$HOSTNAME/$INTERNAL_IP/$ALLCONFIG
+if [ -z "$INTERNAL_IP" ] 
+then
+	INTERNAL_IP="0"
+	NAT=1
+else
+	test_nat
+	if [ $NAT -eq 0 ] 
+	then
+		echo "NAT => No NAT, direct connection."
+	else
+		echo "NAT => Yes, connect through NAT system."
+		INTERNAL_IP=0
+	fi 
+fi
+if [ -z $PORT ]
+then
+	PORT=665
+fi
+
+URL=${URL}/${HASH_MAC}/$NETWORK_NAME/${MAC_ENCODE}/$HOSTNAME/$INTERNAL_IP/$PORT/$ALLCONFIG
 echo "URL => ${URL}"
 #CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub | ${DECRYPTFILE} ${TINCPATH}/rsa_key.priv)
 CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub)

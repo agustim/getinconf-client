@@ -1,5 +1,6 @@
 VERSION = 0.1
 NAME = getinconf-client
+PACKAGE_VERSION=1_all
 SOURCEDIR = $(NAME)-$(VERSION)
 TGZNAME = $(NAME)-$(VERSION).tar.gz
 SRC = src/
@@ -23,7 +24,7 @@ preparepkg:
 	@tar zxf $(TGZNAME)
 
 makepkg:
-	@cd $(SOURCEDIR); DEBFULLNAME="$(FULLNAME)" dh_make -f ../$(TGZNAME) -i -e $(EMAIL) -c gpl2
+	@cd $(SOURCEDIR); DEBFULLNAME="$(FULLNAME)" yes | dh_make -f ../$(TGZNAME) -i -e $(EMAIL) -c gpl2
 
 preinstallpkg:
 	cp -dpR debpkg/* $(SOURCEDIR)/debian/
@@ -34,3 +35,8 @@ installpkg:
 buildpkg:	preparepkg makepkg preinstallpkg installpkg
 	@echo "buidlpkg"
 
+install:
+	sudo dpkg -i ./${NAME}_${VERSION}-${PACKAGE_VERSION}.deb
+
+uninstall:
+	sudo dpkg -P ${NAME}
