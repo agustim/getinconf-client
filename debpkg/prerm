@@ -19,14 +19,7 @@ set -e
 
 case "$1" in
     remove|upgrade|deconfigure)
-		. /etc/getinconf-client.conf
-
-		/etc/init.d/tinc stop
-		cat /etc/tinc/nets.boot |grep -v ^${NETWORK_NAME} > /etc/tinc/nets.boot.new
-		rm /etc/tinc/nets.boot
-		mv /etc/tinc/nets.boot.new /etc/tinc/nets.boot
-		rm -rf /etc/tinc/${NETWORK_NAME}
-		/etc/init.d/tinc start
+        getinconf-client uninstall
     ;;
 
     failed-upgrade)

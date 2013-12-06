@@ -17,53 +17,11 @@ set -e
 # for details, see http://www.debian.org/doc/debian-policy/ or
 # the debian-policy package
 
-variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
-othersvariables="PORT=665 GETINCONF_IGNORE=1"
-conffile="/etc/getinconf-client.conf"
 
-write_file()
-{
-	echo '#!/bin/sh'
-	echo ''
-	echo '# Automatically generate file'
-	for i in $variables
-	do
-		eval echo $i=\${$i}
-	done
-	for i in $othersvariables
-	do
-		echo "#${i}"
-	done
-}
-
-read_file()
-{
-
-	. $conffile
-}
-
-config_file()
-{
-	read_file
-	for i in $variables
-	do
-		eval echo -n "Valor de $i [\${$i}]:"
-		eval tmpold=\${$i}
-		read $i
-		eval actval=\${$i}
-		if [ -z $actval ]
-		then
-			eval $i=$tmpold
-		fi
-	done 
-	write_file > $conffile
-
-	getinconf-client
-}
 
 case "$1" in
     configure)
-		config_file
+		getinconf-client configure
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

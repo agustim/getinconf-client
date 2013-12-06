@@ -20,40 +20,70 @@
 #	Simó Albert i Beltran
 #
 
-POSTDATA=""
-BOUNDARY="-----02CAFFEEBABE"
+
+variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
+othersvariables="PORT=665 GETINCONF_IGNORE=1"
+conffile="/etc/getinconf-client.conf"
 TINCPATH=/etc/tinc
 TINCDAEMON=tincd
 DECRYPTFILE=/usr/sbin/decrypt
 TINCDINIT=/etc/init.d/tinc
 NETSBOOTFILE=/etc/tinc/nets.boot
 CONFIGFILE=/etc/getinconf-client.conf
-ALLCONFIG=1
-HOSTNAME=$(hostname)
-WGETOPTIONS="-T 10 -t 1"
-GTC_SERVER_GETPATH="/nodes/get2"
-GTC_SERVER_MYIP="/pages/ip"
 
+# COMFIGURE
+write_file()
+{
+	echo '#!/bin/sh'
+	echo ''
+	echo '# Automatically generate file'
+	for i in $variables
+	do
+		eval echo $i=\${$i}
+	done
+	for i in $othersvariables
+	do
+		echo "#${i}"
+	done
+}
 
-if [ -f ${CONFIGFILE} ];
-then
-	. ${CONFIGFILE} 
-	if [ ! -z ${GETINCONF_IGNORE} ]
-	then
-		echo "Remove GETINCONF_IGNORE from ${CONFIGFILE}."
-		exit
-	fi
-else 
-	echo "Config file (${CONFIGFILE}) doesn't exist."
-	exit
-fi
+read_file()
+{
 
-INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}"|awk '{print $2}'| sed 's/\(.*\)\/.*/\1/')
-MAC=$(ip addr show dev ${INTERNAL_DEV}|grep link/ether | awk '{print $2}' | tr "[:lower:]" "[:upper:]")
-MAC_ENCODE=$(echo "${MAC}" | awk '{gsub(/:/,"-"); print $1}')
-HASH_MAC=$(echo -n "${MAC}${NETWORK_KEY}${NETWORK_NAME}" | md5sum | awk '{print $1}')
-URL="${GTC_SERVER_URL}${GTC_SERVER_GETPATH}"
+	. $CONFIGFILE
+}
 
+config_file()
+{
+	read_file
+	for i in $variables
+	do
+		eval echo -n "Valor de $i [\${$i}]:"
+		eval tmpold=\${$i}
+		read $i
+		eval actval=\${$i}
+		if [ -z $actval ]
+		then
+			eval $i=$tmpold
+		fi
+	done 
+	write_file > $CONFIGFILE
+
+}
+
+# UNINSTALL
+uninstall_function()
+{
+	read_file
+	
+	${TINCDINIT} stop
+	cat ${NETSBOOTFILE} |grep -v ^${NETWORK_NAME} > ${NETSBOOTFILE}.new
+	rm ${NETSBOOTFILE}
+	mv ${NETSBOOTFILE}.new ${NETSBOOTFILE}
+	rm -rf ${TINCPATH}/${NETWORK_NAME}
+	${TINCDINIT} start
+}
+# LOAD 
 test_nat() {
 	# Get myIP
 	MYIP=$(wget ${WGETOPTIONS} -qO - "${GTC_SERVER_URL}${GTC_SERVER_MYIP}")
@@ -76,11 +106,11 @@ Content-Type: text/plain
 ${TEMPDATA}
 
 "
-	}
+}
 
 end_boundary() {
         POSTDATA="${POSTDATA}--${BOUNDARY}- -"
-	}
+}
 
 
 call_wget() {
@@ -90,53 +120,104 @@ call_wget() {
 	end_boundary
 
 	wget ${WGETOPTIONS} --header="Content-Type: multipart/form-data; boundary=${BOUNDARY}" --post-data="${POSTDATA}" -qO - ${LURL}
-	}
+}
 
 add_network_netsboot() {
 	echo "Buscar si esta a netboot!"	
  	$(cat ${NETSBOOTFILE}|grep -qe ^${NETWORK_NAME}) &&  echo "[NO]" || (echo "[YES]"; echo "${NETWORK_NAME}" >> ${NETSBOOTFILE})
-	}
+}
 
-mkdir -p ${TINCPATH}
-cd ${TINCPATH}
-if [ ! -f rsa_key.priv ]
-then
-	echo -e "\n\n"|tincd -K
-fi
+load() {
 
-if [ -z "$INTERNAL_IP" ] 
-then
-	INTERNAL_IP="0"
-	NAT=1
-else
-	test_nat
-	if [ $NAT -eq 0 ] 
+	POSTDATA=""
+	BOUNDARY="-----02CAFFEEBABE"
+	ALLCONFIG=1
+	HOSTNAME=$(hostname)
+	WGETOPTIONS="-T 10 -t 1"
+	GTC_SERVER_GETPATH="/nodes/get2"
+	GTC_SERVER_MYIP="/pages/ip"
+
+
+	if [ -f ${CONFIGFILE} ];
 	then
-		echo "NAT => No NAT, direct connection."
-	else
-		echo "NAT => Yes, connect through NAT system."
-		INTERNAL_IP=0
-	fi 
-fi
-if [ -z $PORT ]
-then
-	PORT=665
-fi
+		. ${CONFIGFILE} 
+		if [ ! -z ${GETINCONF_IGNORE} ]
+		then
+			echo "Remove GETINCONF_IGNORE from ${CONFIGFILE}."
+			exit
+		fi
+	else 
+		echo "Config file (${CONFIGFILE}) doesn't exist."
+		exit
+	fi
 
-URL=${URL}/${HASH_MAC}/$NETWORK_NAME/${MAC_ENCODE}/$HOSTNAME/$INTERNAL_IP/$PORT/$ALLCONFIG
-echo "URL => ${URL}"
-#CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub | ${DECRYPTFILE} ${TINCPATH}/rsa_key.priv)
-CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub)
-echo -n "Load config...."
-echo "${CONFIG}"
-if echo "$CONFIG" | grep -q "^#!/bin/"
-then
-	echo "OK"
-	sh -c "$CONFIG"
-	#echo "${CONFIG}"
-	echo -n "Need install net tinc to ${NETSBOOTFILE}? "
-	add_network_netsboot
-	${TINCDINIT} restart
-else
-	echo "Error."
-fi
+	INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}"|awk '{print $2}'| sed 's/\(.*\)\/.*/\1/')
+	MAC=$(ip addr show dev ${INTERNAL_DEV}|grep link/ether | awk '{print $2}' | tr "[:lower:]" "[:upper:]")
+	MAC_ENCODE=$(echo "${MAC}" | awk '{gsub(/:/,"-"); print $1}')
+	HASH_MAC=$(echo -n "${MAC}${NETWORK_KEY}${NETWORK_NAME}" | md5sum | awk '{print $1}')
+	URL="${GTC_SERVER_URL}${GTC_SERVER_GETPATH}"
+
+
+	mkdir -p ${TINCPATH}
+	cd ${TINCPATH}
+	if [ ! -f rsa_key.priv ]
+	then
+		echo -e "\n\n"|tincd -K
+	fi
+
+	if [ -z "$INTERNAL_IP" ] 
+	then
+		INTERNAL_IP="0"
+		NAT=1
+	else
+		test_nat
+		if [ $NAT -eq 0 ] 
+		then
+			echo "NAT => No NAT, direct connection."
+		else
+			echo "NAT => Yes, connect through NAT system."
+			INTERNAL_IP=0
+		fi 
+	fi
+	if [ -z $PORT ]
+	then
+		PORT=665
+	fi
+
+	URL=${URL}/${HASH_MAC}/$NETWORK_NAME/${MAC_ENCODE}/$HOSTNAME/$INTERNAL_IP/$PORT/$ALLCONFIG
+	echo "URL => ${URL}"
+	#CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub | ${DECRYPTFILE} ${TINCPATH}/rsa_key.priv)
+	CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub)
+	echo -n "Load config...."
+	echo "${CONFIG}"
+	if echo "$CONFIG" | grep -q "^#!/bin/"
+	then
+		echo "OK"
+		sh -c "$CONFIG"
+		#echo "${CONFIG}"
+		echo -n "Need install net tinc to ${NETSBOOTFILE}? "
+		add_network_netsboot
+		${TINCDINIT} restart
+	else
+		echo "Error."
+		return -1
+	fi
+}
+
+case "$1" in
+    install)
+		load
+    ;;
+
+    configure)
+		config_file
+		load
+    ;;
+
+    uninstall)
+		uninstall_function		
+	;;
+    *)
+        echo "Use: $0 [install|configure|unistall]"
+    ;;
+esac
