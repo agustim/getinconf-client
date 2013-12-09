@@ -20,10 +20,6 @@
 #	Simó Albert i Beltran
 #
 
-
-variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
-othersvariables="PORT=665 GETINCONF_IGNORE=1"
-conffile="/etc/getinconf-client.conf"
 TINCPATH=/etc/tinc
 TINCDAEMON=tincd
 DECRYPTFILE=/usr/sbin/decrypt
@@ -32,6 +28,8 @@ NETSBOOTFILE=/etc/tinc/nets.boot
 CONFIGFILE=/etc/getinconf-client.conf
 
 # COMFIGURE
+variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
+othersvariables="PORT=665 GETINCONF_IGNORE=1"
 write_file()
 {
 	echo '#!/bin/sh'
@@ -43,18 +41,36 @@ write_file()
 	done
 	for i in $othersvariables
 	do
-		echo "#${i}"
+		echo "# ${i}"
+	done
+}
+
+unset_variables()
+{
+	local i
+	local t
+
+	for i in $variables
+	do
+		unset $i
+	done
+	for i in $othersvariables
+	do
+		t=$(echo $i|cut -d "=" -f 1)
+		unset $t
 	done
 }
 
 read_file()
 {
-
+	unset_variables
 	. $CONFIGFILE
 }
 
 config_file()
 {
+	local i
+
 	read_file
 	for i in $variables
 	do
@@ -70,21 +86,38 @@ config_file()
 	write_file > $CONFIGFILE
 
 }
+ask_install()
+{
+	local i
+	read -p "Execute getinconf-client now (Y/n)? " i
+	 if [ -z "$i" ]; then
+		i="Y"
+	fi
+	case "$i" in
+		Y*|y*) return 0 ;;
+		N*|n*) return 1 ;;
+	esac
+
+}
 
 # UNINSTALL
 uninstall_function()
 {
 	read_file
-	
-	${TINCDINIT} stop
-	cat ${NETSBOOTFILE} |grep -v ^${NETWORK_NAME} > ${NETSBOOTFILE}.new
-	rm ${NETSBOOTFILE}
-	mv ${NETSBOOTFILE}.new ${NETSBOOTFILE}
-	rm -rf ${TINCPATH}/${NETWORK_NAME}
-	${TINCDINIT} start
+	if [ ! -z ${NETWORK_NAME} ]
+	then
+		${TINCDINIT} stop
+		cat ${NETSBOOTFILE} |grep -v ^${NETWORK_NAME} > ${NETSBOOTFILE}.new
+		rm ${NETSBOOTFILE}
+		mv ${NETSBOOTFILE}.new ${NETSBOOTFILE}
+		rm -rf ${TINCPATH}/${NETWORK_NAME}
+		${TINCDINIT} start
+	fi
 }
 # LOAD 
 test_nat() {
+
+	local MYIP
 	# Get myIP
 	MYIP=$(wget ${WGETOPTIONS} -qO - "${GTC_SERVER_URL}${GTC_SERVER_MYIP}")
 	# Compare my IP with my IP Connect.
@@ -137,10 +170,9 @@ load() {
 	GTC_SERVER_GETPATH="/nodes/get2"
 	GTC_SERVER_MYIP="/pages/ip"
 
-
 	if [ -f ${CONFIGFILE} ];
 	then
-		. ${CONFIGFILE} 
+		read_file 
 		if [ ! -z ${GETINCONF_IGNORE} ]
 		then
 			echo "Remove GETINCONF_IGNORE from ${CONFIGFILE}."
@@ -211,7 +243,9 @@ case "$1" in
 
     configure)
 		config_file
-		load
+		if ask_install; then
+			load
+		fi
     ;;
 
     uninstall)
