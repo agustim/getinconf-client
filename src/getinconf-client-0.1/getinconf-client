@@ -252,6 +252,6 @@ case "$1" in
 		uninstall_function		
 	;;
     *)
-        echo "Use: $0 [install|configure|unistall]"
+        echo "Use: $0 [install|configure|uninstall]"
     ;;
 esac
