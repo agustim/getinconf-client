@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright © 2012 Routek S.L.
+# Copyright © 2013 Fundació Guifi.net 
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,8 +17,8 @@
 #
 # Authors:
 #	Agustí Moll i Garcia
-#	Simó Albert i Beltran
 #
+# Base in synctincvpn
 
 TINCPATH=/etc/tinc
 TINCDAEMON=tincd
