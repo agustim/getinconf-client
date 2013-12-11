@@ -23,6 +23,7 @@ PACKAGE_VERSION=1_all
 SOURCEDIR = $(NAME)-$(VERSION)
 TGZNAME = $(NAME)-$(VERSION).tar.gz
 SRC = src/
+TMP = tmp/
 EMAIL = agusti.moll@guifi.net
 FULLNAME = Agustí Moll i Garcia
 SIGNED ?= Yes
@@ -31,14 +32,40 @@ ifeq ($(SIGNED), Yes)
 else
 	DEBUILD_OPTIONS = -us -uc
 endif
+# Config info
+GTC_SERVER_URL ?= "http://vpn.qmp.cat/index.php"
+NETWORK_NAME ?= demo
+NETWORK_KEY ?= demo
+INTERNAL_DEV ?= eth0
 
+define config_client_generator
+	@echo "Make a config file in $1"
+	@echo "GTC_SERVER_URL=\"$(GTC_SERVER_URL)\"" > $1
+	@echo "NETWORK_NAME=\"$(NETWORK_NAME)\"" >> $1
+	@echo "NETWORK_KEY=\"$(NETWORK_KEY)\"" >> $1
+	@echo "INTERNAL_DEV=\"$(INTERNAL_DEV)\"" >> $1
+endef
 
 all: tgz buildpkg
 	@echo "Did it!"
 
+all_genconf: tgz_genconf buildpkg
+	@echo "Did it with configfile!"
+
 tgz:
 	@echo "Create .tgz"
 	@cd $(SRC);tar zcf ../$(TGZNAME) $(SOURCEDIR)
+
+tgz_genconf:
+	@echo "Copy $(SRC) to $(TMP)"
+	rm -rf $(TMP)
+	mkdir -p $(TMP) 
+	cp -dpR $(SRC)* $(TMP)
+	@echo "Generat config file"
+	$(call config_client_generator, $(TMP)$(SOURCEDIR)/getinconf-client.conf)
+	@echo "Create .tgz"
+	@cd $(TMP);tar zcf ../$(TGZNAME) $(SOURCEDIR)
+	rm -rf $(TMP)
 
 cleanpkg:
 	@echo "Remove debuild"
@@ -66,3 +93,4 @@ install:
 
 uninstall:
 	sudo dpkg -P ${NAME}
+
