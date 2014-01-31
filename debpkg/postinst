@@ -21,7 +21,6 @@ set -e
 
 case "$1" in
     configure)
-		getinconf-client configure
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
