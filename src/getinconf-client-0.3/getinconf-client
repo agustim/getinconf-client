@@ -25,10 +25,10 @@ TINCDAEMON=tincd
 DECRYPTFILE=/usr/sbin/decrypt
 TINCDINIT=/etc/init.d/tinc
 NETSBOOTFILE=/etc/tinc/nets.boot
-CONFIGFILE=/etc/getinconf-client.conf
+CONFIGDIR=/etc/getinconf-client
 
 # COMFIGURE
-variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
+variables="NETWORK_NAME GTC_SERVER_URL NETWORK_KEY INTERNAL_DEV"
 othersvariables="PORT=665 GETINCONF_IGNORE=1"
 write_file()
 {
@@ -63,27 +63,43 @@ unset_variables()
 
 read_file()
 {
+	local nnbck
+
+	nnbck=$NETWORK_NAME
 	unset_variables
-	. $CONFIGFILE
+	NETWORK_NAME=$nnbck
+	[ -f "${CONFIGDIR}/${NETWORK_NAME}.conf" ] && . ${CONFIGDIR}/${NETWORK_NAME}.conf
+}
+
+read_pathfile()
+{
+	unset_variables
+	. $1
 }
 
 config_file()
 {
 	local i
 
+	echo -n "Valor de NETWORK_NAME:"
+	read NETWORK_NAME
 	read_file
 	for i in $variables
 	do
-		eval echo -n "Valor de $i [\${$i}]:"
-		eval tmpold=\${$i}
-		read $i
-		eval actval=\${$i}
-		if [ -z $actval ]
+		if [ "$i" != "NETWORK_NAME" ]
 		then
-			eval $i=$tmpold
+			eval echo -n "Valor de $i [\${$i}]:"
+			eval tmpold=\${$i}
+			read $i
+			eval actval=\${$i}
+			if [ -z $actval ]
+			then
+				eval $i=$tmpold
+			fi
 		fi
-	done 
-	write_file > $CONFIGFILE
+	done
+	mkdir -p ${CONFIGDIR}
+	write_file > ${CONFIGDIR}/${NETWORK_NAME}.conf
 
 }
 ask_install()
@@ -103,6 +119,7 @@ ask_install()
 # UNINSTALL
 uninstall_function()
 {
+	NETWORK_NAME=$1
 	read_file
 	if [ ! -z ${NETWORK_NAME} ]
 	then
@@ -111,6 +128,7 @@ uninstall_function()
 		rm ${NETSBOOTFILE}
 		mv ${NETSBOOTFILE}.new ${NETSBOOTFILE}
 		rm -rf ${TINCPATH}/${NETWORK_NAME}
+		rm -f ${CONFIGDIR}/${NETWORK_NAME}.conf
 		${TINCDINIT} start
 	fi
 }
@@ -172,7 +190,7 @@ load() {
 
 	if [ -f ${CONFIGFILE} ];
 	then
-		read_file 
+		read_pathfile ${CONFIGFILE}  
 		if [ ! -z ${GETINCONF_IGNORE} ]
 		then
 			echo "Remove GETINCONF_IGNORE from ${CONFIGFILE}."
@@ -238,18 +256,41 @@ load() {
 
 case "$1" in
     install)
-		load
+		if [ -d "$CONFIGDIR" ]
+		then 
+			for i in $(ls ${CONFIGDIR}/*.conf 2> /dev/null)
+			do
+				CONFIGFILE=$i
+				load 
+			done
+		fi
     ;;
 
     configure)
 		config_file
 		if ask_install; then
+			CONFIGFILE=${CONFIGDIR}/${NETWORK_NAME}.conf
 			load
 		fi
     ;;
 
     uninstall)
-		uninstall_function		
+		if [ "$#" -eq 2 ] 
+		then
+			echo "Uninstall: $2"
+			uninstall_function $2
+		else 
+			echo "Uninstall all"
+			if [ -d "$CONFIGDIR" ]
+			then 
+				for i in $(ls ${CONFIGDIR}/*.conf 2> /dev/null)
+				do
+					read_pathfile $i
+					echo "Unistall ${NETWORK_NAME}"
+					uninstall_function ${NETWORK_NAME}
+				done
+			fi
+		fi	
 	;;
     *)
         echo "Use: $0 [install|configure|uninstall]"
