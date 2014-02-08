@@ -26,6 +26,12 @@ DECRYPTFILE=/usr/sbin/decrypt
 TINCDINIT=/etc/init.d/tinc
 NETSBOOTFILE=/etc/tinc/nets.boot
 CONFIGFILE=/etc/getinconf-client.conf
+DEBUGFILE=/tmp/getinconf-client.log
+
+# DEBUG
+wlog(){
+	[ -f ${DEBUGFILE} ] && echo "[$(date +%c)]: $*" >> ${DEBUGFILE}
+}
 
 # COMFIGURE
 variables="GTC_SERVER_URL NETWORK_NAME NETWORK_KEY INTERNAL_DEV"
@@ -121,7 +127,7 @@ test_nat() {
 	# Get myIP
 	MYIP=$(wget ${WGETOPTIONS} -qO - "${GTC_SERVER_URL}${GTC_SERVER_MYIP}")
 	# Compare my IP with my IP Connect.
-	[ $INTERNAL_IP != $MYIP ] && NAT=1 || NAT=0
+	[ "$INTERNAL_IP" != "$MYIP" ] && NAT=1 || NAT=0
 }
 msg_error() {
 	echo $1
@@ -205,9 +211,9 @@ load() {
 		test_nat
 		if [ $NAT -eq 0 ] 
 		then
-			echo "NAT => No NAT, direct connection."
+			wlog "NAT => No NAT, direct connection."
 		else
-			echo "NAT => Yes, connect through NAT system."
+			wlog "NAT => Yes, connect through NAT system."
 			INTERNAL_IP=0
 		fi 
 	fi
@@ -217,22 +223,21 @@ load() {
 	fi
 
 	URL=${URL}/${HASH_MAC}/$NETWORK_NAME/${MAC_ENCODE}/$HOSTNAME/$INTERNAL_IP/$PORT/$ALLCONFIG
-	echo "URL => ${URL}"
+	wlog "URL => ${URL}"
 	#CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub | ${DECRYPTFILE} ${TINCPATH}/rsa_key.priv)
 	CONFIG=$(call_wget ${URL} ${TINCPATH}/rsa_key.pub)
 	echo -n "Load config...."
-	echo "${CONFIG}"
+	wlog "${CONFIG}"
 	if echo "$CONFIG" | grep -q "^#!/bin/"
 	then
 		echo "OK"
 		sh -c "$CONFIG"
-		#echo "${CONFIG}"
 		echo -n "Need install net tinc to ${NETSBOOTFILE}? "
 		add_network_netsboot
 		${TINCDINIT} restart
 	else
 		echo "Error."
-		return -1
+		return 1
 	fi
 }
 
@@ -252,6 +257,6 @@ case "$1" in
 		uninstall_function		
 	;;
     *)
-        echo "Use: $0 [install|configure|uninstall]"
+        echo "Use: $0 <install|configure|uninstall>"
     ;;
 esac
