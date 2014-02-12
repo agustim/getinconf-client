@@ -21,7 +21,7 @@
 # Base in synctincvpn
 
 TINCPATH=/etc/tinc
-TINCDAEMON=tincd
+TINCDAEMON=/usr/sbin/tincd
 DECRYPTFILE=/usr/sbin/decrypt
 TINCDINIT=/etc/init.d/tinc
 NETSBOOTFILE=/etc/tinc/nets.boot
@@ -218,7 +218,7 @@ load() {
 	cd ${TINCPATH}
 	if [ ! -f rsa_key.priv ]
 	then
-		echo -e "\n\n"|tincd -K
+		echo -e "\n\n"|${TINCDAEMON} -K
 	fi
 
 	if [ -z "$INTERNAL_IP" ] 

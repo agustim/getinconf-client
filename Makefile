@@ -17,7 +17,7 @@
 #
 #    Contributors: Agustí Moll i Garcia <agusti.moll@guifi.net>
 #
-VERSION = 0.4
+VERSION = 0.5
 NAME = getinconf-client
 PACKAGE_VERSION=1_all
 SOURCEDIR = $(NAME)-$(VERSION)
