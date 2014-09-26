@@ -189,7 +189,7 @@ load() {
 		exit
 	fi
 
-	INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}"|awk '{print $2}'| sed 's/\(.*\)\/.*/\1/')
+	INTERNAL_IP=$(ip addr |grep "global ${INTERNAL_DEV}$"|awk '{print $2}'| sed 's/\(.*\)\/.*/\1/')
 	MAC=$(ip addr show dev ${INTERNAL_DEV}|grep link/ether | awk '{print $2}' | tr "[:lower:]" "[:upper:]")
 	MAC_ENCODE=$(echo "${MAC}" | awk '{gsub(/:/,"-"); print $1}')
 	HASH_MAC=$(echo -n "${MAC}${NETWORK_KEY}${NETWORK_NAME}" | md5sum | awk '{print $1}')
